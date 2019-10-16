@@ -3,10 +3,10 @@
 
 # Define the number of master and worker nodes
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
-NUM_MASTER_NODE = 2
-NUM_WORKER_NODE = 2
+NUM_MASTER_NODE = 3
+NUM_WORKER_NODE = 3
 
-IP_NW = "192.168.5."
+IP_NW = "192.168.87."
 MASTER_IP_START = 10
 NODE_IP_START = 20
 LB_IP_START = 30
@@ -23,7 +23,7 @@ Vagrant.configure("2") do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
   # config.vm.box = "base"
-  config.vm.box = "ubuntu/bionic64"
+  config.vm.box = "generic/ubuntu1804"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -57,17 +57,16 @@ Vagrant.configure("2") do |config|
   (1..NUM_MASTER_NODE).each do |i|
       config.vm.define "master-#{i}" do |node|
         # Name shown in the GUI
-        node.vm.provider "virtualbox" do |vb|
-            vb.name = "kubernetes-ha-master-#{i}"
-            vb.memory = 2048
-            vb.cpus = 2
+        node.vm.provider "vmware_desktop" do |v|
+            v.vmx["memsize"] = "2048"
+            v.vmx["numvcpus"] = "2"
         end
         node.vm.hostname = "master-#{i}"
         node.vm.network :private_network, ip: IP_NW + "#{MASTER_IP_START + i}"
         node.vm.network "forwarded_port", guest: 22, host: "#{2710 + i}"
 
         node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/vagrant/setup-hosts.sh" do |s|
-          s.args = ["enp0s8"]
+          s.args = ["eth1"]
         end
 
         node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
@@ -77,17 +76,16 @@ Vagrant.configure("2") do |config|
 
   # Provision Load Balancer Node
   config.vm.define "loadbalancer" do |node|
-    node.vm.provider "virtualbox" do |vb|
-        vb.name = "kubernetes-ha-lb"
-        vb.memory = 512
-        vb.cpus = 1
+    node.vm.provider "vmware_desktop" do |v|
+        v.vmx["memsize"] = "512"
+        v.vmx["numvcpus"] = "1"
     end
     node.vm.hostname = "loadbalancer"
     node.vm.network :private_network, ip: IP_NW + "#{LB_IP_START}"
 	node.vm.network "forwarded_port", guest: 22, host: 2730
 
     node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/vagrant/setup-hosts.sh" do |s|
-      s.args = ["enp0s8"]
+      s.args = ["eth1"]
     end
 
     node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
@@ -97,17 +95,16 @@ Vagrant.configure("2") do |config|
   # Provision Worker Nodes
   (1..NUM_WORKER_NODE).each do |i|
     config.vm.define "worker-#{i}" do |node|
-        node.vm.provider "virtualbox" do |vb|
-            vb.name = "kubernetes-ha-worker-#{i}"
-            vb.memory = 512
-            vb.cpus = 1
+        node.vm.provider "vmware_desktop" do |v|
+            v.vmx["memsize"] = "512"
+            v.vmx["numvcpus"] = "1"
         end
         node.vm.hostname = "worker-#{i}"
         node.vm.network :private_network, ip: IP_NW + "#{NODE_IP_START + i}"
 		node.vm.network "forwarded_port", guest: 22, host: "#{2720 + i}"
 
         node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/vagrant/setup-hosts.sh" do |s|
-          s.args = ["enp0s8"]
+          s.args = ["eth1"]
         end
 
         node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
